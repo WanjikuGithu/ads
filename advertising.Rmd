@@ -1,0 +1,275 @@
+---
+author: "Wanjiku Githu,"
+date: "October 29, 2020"
+title: "Analysis of Advertising Data "
+output:
+  md_document:
+    variant: markdown_github
+---
+**Defining the Question**
+
+The goal is to identify which individuals are most likely to click on ads displayed in a blog based on data that was previously collected on the site.
+
+**Defining the Metrics for Success**
+
+The project will be deemed successful when the characteristics of individuals likely to click ads will be identified through multivariate exploratory data analysis.
+
+**Recording the Experimental Design**
+
+1. Reading in the data
+2. Checking for missing values
+3. Checking for duplicates
+4. Checking for outliers
+5. Univariate Exploratory Data Analysis
+6. Bivariate Exploratory Data Analysis
+7. Multivariate Exploratory Data Analysis
+8. Conclusion and Recommendation
+
+**Is the data appropriate to answer the question?**
+
+Yes, the data is suitable for answering the question as the data was collected on the site that will be used to host the cryptography online class advertisement.
+
+**Loading the required libraries**
+
+```{r setup, include=TRUE, warning=FALSE, echo=TRUE, message=FALSE}
+# Loading libraries
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(tibble)
+library(stringr)
+library(tidyr)
+library(MASS)
+library(lubridate)
+
+```
+
+**Reading in the data**
+```{r, echo=TRUE, include=TRUE, warning=FALSE, message=FALSE}
+
+# Reading the data
+ads <- read_csv(file = 'C:/Users/Githu/Downloads/advertising.csv')
+```
+
+**Checking the Data**
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Determining the number of records
+dim(ads)
+
+# Displaying the structure of the dataset
+str(ads)
+
+# Viewing the top of our dataset
+knitr::kable(
+  ads[1:5, ]
+  )
+
+# Viewing the bottom of our dataset
+knitr::kable(
+  ads[995:1000, ] 
+  )
+
+# Standardizing the column names
+names(ads) <- str_replace_all(names(ads), c(" " = "_"))
+names(ads) <- tolower(names(ads))
+colnames(ads)
+
+# Checking for missing values
+colSums(is.na(ads))
+
+# Checking for duplicates
+duplicated_rows <- ads[duplicated(ads),]
+duplicated_rows
+
+# Checking for outliers using a boxplot
+ads %>% 
+  dplyr::select(daily_time_spent_on_site, daily_internet_usage, age, male) %>%
+  tidyr::pivot_longer(., cols = c(daily_time_spent_on_site,daily_internet_usage,age),names_to = "Var", values_to = "Val") %>%
+  ggplot(aes(x = Var, y = Val, fill = male)) +
+  ggtitle("Boxplot of numerical columns") +
+  geom_boxplot()
+
+# Boxplot of the area_income variable
+boxplot(ads$area_income)
+```
+
+
+The dataset requires little cleaning. There are no missing values or duplicates. The columns names have been standardised to have the same format. Outliers are present in the area income variable only. These are the entries of individuals with low income. We will work with these outliers as dropping them means such individuals with lower incomes(actual potential customers) will not be accounted for.
+
+**Univariate Exploratory Data Analysis**
+
+```{r, echo=TRUE}
+# Determining the average age of the visitors
+average_age <- mean(ads$age)
+paste("The average age of the visitors is", average_age)
+
+# Determining the average income of the visitors
+average_income <- mean(ads$area_income)
+paste("The average area income of the visitors is:", average_income)
+
+# Determining the average daily time spent on the site
+average_time <- mean(ads$daily_time_spent_on_site)
+paste("The average daily time spent on the site is:", average_time)
+
+# Determining the average daily internet usage
+average_usage <- mean(ads$daily_internet_usage)
+paste("The average daily internet usage is:", average_usage)
+
+# Determining the frequency count of male column
+# 0 is female and 1 is male
+table(ads$male)
+
+# Determining the frequency count of the clicked_ad column
+# 0 = did not click ad  and 1 = clicked ad
+table(ads$clicked_on_ad)
+
+# Summary statistics of the dataset
+summary(ads)
+
+```
+
+**Bivariate Exploratory Data Analysis**
+
+```{r, echo=TRUE, include=TRUE, message=FALSE, warning=FALSE}
+# Bar plot of gender and age
+ggplot(data=ads, aes(x=male, y=age)) +
+  geom_bar(stat="identity", width=0.5) +
+  ggtitle("Barplot of age based on gender")
+
+# Selecting the numerical columns
+num_cols <- ads[,c(1, 2, 3, 4)]
+colnames(num_cols)
+
+# Correlation matrix of the continous data
+cor(num_cols)
+
+# Distribution of area income
+hist(ads[ads$clicked_on_ad == 1,]$area_income,xlab = 'Area Income', main = 'Clicked on ads' )
+hist(ads[ads$clicked_on_ad == 0,]$area_income,xlab = 'Area Income', main = 'Did not click ads' )
+
+# Average Income of users based on whether they clicked the ads or not
+ads %>%
+  group_by(clicked_on_ad) %>%
+  summarise(mean(area_income))
+
+# Finding the age group that most clicks on ads using a histogram
+ads %>%
+  filter(clicked_on_ad == 1) %>%
+  ggplot(aes(x=age)) +
+  geom_histogram(binwidth = 10, fill="#69b3a2", color="#e9ecef", alpha=0.9) +
+  ggtitle("Age Distribution of the users that clicked the ad") 
+
+```
+
+The age group that most clicked on the ads ranges between 35 and 45
+
+```{r, echo=TRUE, include=TRUE, message=FALSE, warning=FALSE}
+# Finding the age group that did not click on the ads using a histogram
+ads %>%
+  filter(clicked_on_ad == 0) %>%
+  ggplot(aes(x=age)) +
+  geom_histogram(binwidth = 10, fill="#69b3a2", color="#e9ecef", alpha=0.9) +
+  ggtitle("Age Distribution of the users that did not click the ad")
+```
+
+Most users who did not click on the ads are between the age of 25 and 35
+```{r, echo=TRUE, include=TRUE, message=FALSE, warning=FALSE }
+# Distribution of daily time spent on site
+ads %>%
+  filter(clicked_on_ad == 1) %>%
+  ggplot(aes(x=daily_time_spent_on_site)) +
+  geom_histogram(binwidth = 10, fill="#69b3a2", color="#e9ecef", alpha=0.9) +
+  ggtitle("Distribution of daily time spent on site") 
+
+```
+
+Most of the users who clicked on the ads spent 30 to 50 minutes on the site daily
+
+```{r, echo=TRUE, include=TRUE, message=FALSE, warning=FALSE}
+# Histogram of daily internet usage
+ads %>%
+  filter(clicked_on_ad == 1) %>%
+  ggplot(aes(x=daily_internet_usage)) +
+  geom_histogram(binwidth = 10, fill="#69b3a2", color="#e9ecef", alpha=0.9) +
+  ggtitle("Histogram of daily internet usage")
+```
+
+Most users who clicked on the ads spent 120 to 150 minutes daily on the internet
+
+```{r, echo=TRUE, include=TRUE, message=FALSE, warning=FALSE}
+# Exploring the timestamp summary
+# Plotting the months (clicked_ads = 1)
+ads %>%
+  filter(clicked_on_ad == 1) %>%
+  mutate(ads_months = month(timestamp, label = TRUE)) %>%
+  ggplot(aes(x=ads_months)) +
+  ggtitle("Months") +
+  geom_bar()
+```
+
+The month of February recorded the highest number of the clicked ads
+
+```{r, echo=TRUE, include=TRUE, message=FALSE, warning=FALSE}
+# Plotting the weekdays (clicked_ads = 1)
+ads %>%
+  filter(clicked_on_ad == 1) %>%
+  mutate(ads_weekdays = wday(timestamp, label = TRUE)) %>%
+  ggplot(aes(x=ads_weekdays)) +
+  ggtitle("Weekdays") +
+  geom_bar()
+```
+
+Most ads were clicked on Sunday, Wednesday or Thursday
+```{r, echo=TRUE, include=TRUE, message=FALSE, warning=FALSE}
+
+# Exploring the time concept 
+# Plotting the hour componenr (clicked_ads = 1)
+ads %>%
+  filter(clicked_on_ad == 1) %>%
+  mutate(ads_hours = hour(timestamp)) %>%
+  group_by(ads_hours) %>%
+  ggplot(aes(x=ads_hours)) +
+  ggtitle("Hour") +
+  geom_bar()
+
+```
+
+The highest number of clicked ads were recorded between 9th hour and the lowest at the 10th hour
+
+```{r, echo=TRUE, include=TRUE, message=FALSE, warning=FALSE}
+# Countries 
+ads %>%
+  dplyr::select(country, clicked_on_ad) %>%
+  filter(clicked_on_ad == 1) %>%
+  group_by(country) %>%
+  summarise(n=n()) %>%
+  arrange(desc(n))
+
+ads %>%
+  dplyr::select(city, clicked_on_ad, country) %>%
+  filter(clicked_on_ad == 1) %>%
+  group_by(city) %>%
+  summarise(n=n()) %>%
+  arrange(desc(n))
+```
+
+The countries with relatively higher number of users that clicked the ads include: Australia, Ethiopia, Turkey, Liberia, Liechenstein, South Africa, Afghanistan, France, Hungary and Mayotte.
+
+**Conclusion**
+
+The characteristics of the blog's users that are likely to click on the ads include:
+
+1. The user is female
+2. Ages between 35 and 45 years
+3. Has an income ranging from 40,000 to 60,000
+4. Spends 30 to 50 minutes daily on the site
+5. Spends 120 to 150 minutes daily on the internet
+6. Visits the blog either on a Sunday, Wednesday or Thursday
+7. Visits the blog in early morning hours
+8. Their country location is among the following countries:Australia, Ethiopia, Turkey, Liberia, Liechenstein, South Africa, Afghanistan, France, Hungary and Mayotte.
+
+
+**Recommendations**
+
+Implement the likelihood characteristics mentioned above to enhance targeted advertising.
+
